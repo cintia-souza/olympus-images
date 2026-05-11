@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import { buildPrompt } from "@/lib/prompt-builder";
+import { GeneratingLoader } from "@/components/generating-loader";
+import { ErrorToast } from "@/components/error-toast";
 import type { GenerationFormData, ImageCategory, AspectRatio, LightingStyle, DetailLevel } from "@/types";
-import { Loader2, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
 
 const categories: { value: ImageCategory; label: string }[] = [
   { value: "realistic", label: "Realista" },
@@ -16,6 +18,7 @@ const categories: { value: ImageCategory; label: string }[] = [
 export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<GenerationFormData>({
     category: "realistic",
     subject: "",
@@ -36,18 +39,30 @@ export default function DashboardPage() {
     e.preventDefault();
     setLoading(true);
     setResult(null);
+    setError(null);
 
     const prompt = buildPrompt(form);
 
-    const res = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, category: form.category }),
-    });
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, category: form.category }),
+      });
 
-    const data = await res.json();
-    if (data.image_url) setResult(data.image_url);
-    setLoading(false);
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data.details?.error || data.error || "Erro desconhecido na geração";
+        setError(typeof msg === "string" ? msg : JSON.stringify(msg));
+      } else if (data.image_url) {
+        setResult(data.image_url);
+      }
+    } catch {
+      setError("Falha na conexão. Verifique sua internet e tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleUploadReference(e: React.ChangeEvent<HTMLInputElement>) {
@@ -169,17 +184,23 @@ export default function DashboardPage() {
           disabled={loading || !form.subject}
           className="w-full py-3 bg-accent hover:bg-accent-hover text-black font-semibold rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2 glow"
         >
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-          {loading ? "Gerando..." : "Gerar Imagem"}
+          <Wand2 className="w-4 h-4" />
+          Gerar Imagem
         </button>
       </form>
 
+      {/* Loading */}
+      {loading && <GeneratingLoader />}
+
       {/* Resultado */}
       {result && (
-        <div className="mt-6 rounded-xl overflow-hidden border border-border">
+        <div className="mt-6 rounded-xl overflow-hidden border border-border animate-slide-up">
           <img src={result} alt="Generated" className="w-full" />
         </div>
       )}
+
+      {/* Error Toast */}
+      {error && <ErrorToast message={error} onClose={() => setError(null)} />}
     </div>
   );
 }
