@@ -10,14 +10,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check premium / rate limit
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_premium, generation_count")
       .eq("id", user.id)
       .single();
 
-    const FREE_LIMIT = 10;
+    const FREE_LIMIT = 50;
     if (!profile?.is_premium && (profile?.generation_count ?? 0) >= FREE_LIMIT) {
       return NextResponse.json({ error: "Limite gratuito atingido" }, { status: 403 });
     }
@@ -28,36 +27,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Prompt e categoria são obrigatórios" }, { status: 400 });
     }
 
-    // Call OpenAI DALL-E 3
-    const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "dall-e-3",
-        prompt,
-        n: 1,
-        size: "1024x1024",
-        quality: "standard",
-      }),
-    });
+    // Call Hugging Face Inference API (Stable Diffusion XL)
+    const hfRes = await fetch(
+      "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ inputs: prompt }),
+      }
+    );
 
-    if (!openaiRes.ok) {
-      const err = await openaiRes.json();
+    if (!hfRes.ok) {
+      const err = await hfRes.json().catch(() => ({ error: hfRes.statusText }));
       return NextResponse.json(
-        { error: "OpenAI error", details: err },
-        { status: openaiRes.status }
+        { error: "Hugging Face error", details: err },
+        { status: hfRes.status }
       );
     }
 
-    const openaiData = await openaiRes.json();
-    const image_url = openaiData.data?.[0]?.url;
+    // HF returns the image as a blob
+    const imageBlob = await hfRes.arrayBuffer();
+    const fileName = `generated/${user.id}/${Date.now()}.png`;
 
-    if (!image_url) {
-      return NextResponse.json({ error: "Nenhuma imagem retornada" }, { status: 500 });
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("images")
+      .upload(fileName, imageBlob, { contentType: "image/png" });
+
+    if (uploadError) {
+      return NextResponse.json({ error: "Upload failed", details: uploadError.message }, { status: 500 });
     }
+
+    const { data: urlData } = supabase.storage.from("images").getPublicUrl(uploadData.path);
+    const image_url = urlData.publicUrl;
 
     // Save to database
     await supabase.from("generated_images").insert({
