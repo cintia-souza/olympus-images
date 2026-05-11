@@ -35,3 +35,28 @@ export function buildPrompt(data: GenerationFormData): string {
 
   return parts.join(", ") + ".";
 }
+
+export async function translateToEnglish(text: string): Promise<string> {
+  // Skip if already in English (basic heuristic: no accents/special chars common in PT)
+  if (/^[a-zA-Z0-9\s,.!?'"()\-:;/]+$/.test(text)) return text;
+
+  try {
+    const res = await fetch(
+      "https://api-inference.huggingface.co/models/Helsinki-NLP/opus-mt-tc-big-en",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ inputs: text }),
+      }
+    );
+
+    if (!res.ok) return text;
+    const data = await res.json();
+    return data[0]?.translation_text || text;
+  } catch {
+    return text;
+  }
+}

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase-server";
+import { translateToEnglish } from "@/lib/prompt-builder";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Prompt e categoria são obrigatórios" }, { status: 400 });
     }
 
+    // Translate prompt to English for better AI results
+    const englishPrompt = await translateToEnglish(prompt);
+
     // Call Hugging Face Inference API (Stable Diffusion XL)
     const hfRes = await fetch(
       "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
@@ -36,7 +40,7 @@ export async function POST(request: NextRequest) {
           Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ inputs: prompt }),
+        body: JSON.stringify({ inputs: englishPrompt }),
       }
     );
 
