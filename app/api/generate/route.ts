@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
     // Translate prompt to English for better AI results
     const englishPrompt = await translateToEnglish(prompt);
 
-    // Call Hugging Face Inference API (Stable Diffusion XL)
+    // Call Hugging Face Inference API
     const hfRes = await fetch(
-      "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+      "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev",
       {
         method: "POST",
         headers: {
