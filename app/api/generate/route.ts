@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     // Call Hugging Face Inference API
     const hfRes = await fetch(
-      "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev",
+      "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5",
       {
         method: "POST",
         headers: {
