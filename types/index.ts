@@ -20,22 +20,12 @@ export interface GenerationFormData {
   aspectRatio: AspectRatio;
   detailLevel: DetailLevel;
   additionalDetails: string;
-  referenceImageUrl?: string;
 }
 
 export interface GeneratedImage {
   id: string;
-  user_id: string;
   prompt: string;
   image_url: string;
   category: ImageCategory;
-  created_at: string;
-}
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  is_premium: boolean;
-  generation_count: number;
   created_at: string;
 }

@@ -4,24 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("is_premium, generation_count")
-      .eq("id", user.id)
-      .single();
-
-    const FREE_LIMIT = 50;
-    if (!profile?.is_premium && (profile?.generation_count ?? 0) >= FREE_LIMIT) {
-      return NextResponse.json({ error: "Limite gratuito atingido" }, { status: 403 });
-    }
-
     const { prompt, category } = await request.json();
 
     if (!prompt || !category) {
@@ -54,9 +36,10 @@ export async function POST(request: NextRequest) {
 
     // HF returns the image as a blob
     const imageBlob = await hfRes.arrayBuffer();
-    const fileName = `generated/${user.id}/${Date.now()}.png`;
+    const fileName = `generated/${Date.now()}.png`;
 
     // Upload to Supabase Storage
+    const supabase = await createClient();
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from("images")
       .upload(fileName, imageBlob, { contentType: "image/png" });
@@ -70,17 +53,10 @@ export async function POST(request: NextRequest) {
 
     // Save to database
     await supabase.from("generated_images").insert({
-      user_id: user.id,
       prompt,
       image_url,
       category,
     });
-
-    // Increment generation count
-    await supabase
-      .from("profiles")
-      .update({ generation_count: (profile?.generation_count ?? 0) + 1 })
-      .eq("id", user.id);
 
     return NextResponse.json({ image_url });
   } catch (err: unknown) {

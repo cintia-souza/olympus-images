@@ -5,17 +5,15 @@ import type { GeneratedImage } from "@/types";
 
 export default async function GalleryPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   const { data: images } = await supabase
     .from("generated_images")
     .select("*")
-    .eq("user_id", user!.id)
     .order("created_at", { ascending: false });
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Minha Galeria</h1>
+      <h1 className="text-2xl font-bold mb-6">Galeria</h1>
 
       {!images?.length ? (
         <p className="text-gray-500">Nenhuma imagem gerada ainda.</p>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase-browser";
 import { buildPrompt } from "@/lib/prompt-builder";
 import { GeneratingLoader } from "@/components/generating-loader";
 import { ErrorToast } from "@/components/error-toast";
@@ -28,8 +27,6 @@ export default function DashboardPage() {
     detailLevel: "high",
     additionalDetails: "",
   });
-
-  const supabase = createClient();
 
   function update<K extends keyof GenerationFormData>(key: K, value: GenerationFormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -62,17 +59,6 @@ export default function DashboardPage() {
       setError("Falha na conexão. Verifique sua internet e tente novamente.");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function handleUploadReference(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const path = `references/${Date.now()}-${file.name}`;
-    const { data } = await supabase.storage.from("images").upload(path, file);
-    if (data) {
-      const { data: urlData } = supabase.storage.from("images").getPublicUrl(data.path);
-      update("referenceImageUrl", urlData.publicUrl);
     }
   }
 
@@ -154,11 +140,6 @@ export default function DashboardPage() {
             </select>
           </Field>
         </div>
-
-        {/* Referência */}
-        <Field label="Imagem de Referência (opcional)">
-          <input type="file" accept="image/*" onChange={handleUploadReference} className="input-field file:mr-3 file:bg-accent/10 file:text-accent file:border-0 file:rounded file:px-3 file:py-1 file:text-sm" />
-        </Field>
 
         {/* Detalhes adicionais */}
         <Field label="Detalhes Adicionais">
